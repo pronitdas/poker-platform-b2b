@@ -259,7 +259,7 @@ The team combines **core full-time employees** with **specialized contractors** 
 
 | External System | Integration Complexity | Required Effort | Phasing |
 |------------------|---------------------|-----------------|---------|
-| **Payment Gateway** | Medium (PCI compliance, fraud detection) | 1-2 person-months | Phase 2 |
+| **Payment Gateway** | Medium (PCI compliance, fraud detection) | 1-2 person-months | Phase 3+ real-money only |
 | **Email/SMS Provider** | Low (standard APIs) | 0.5 person-months | Phase 1 |
 | **CDN (CloudFront/Cloudflare)** | Low (static assets) | 0.25 person-months | Phase 1 |
 | **Customer Support Ticketing** | Medium (custom integrations) | 1 person-month | Phase 2 |
@@ -273,7 +273,7 @@ The team combines **core full-time employees** with **specialized contractors** 
 | **APM/Monitoring** | Data retention | 90 days | Local logging backup |
 | **CI/CD Pipeline** | Build time | <10 minutes | Self-hosted runners |
 | **Database (Managed)** | Latency (P99) | <50ms | Connection pooling optimization |
-| **Payment Gateway** | Processing time | <5 seconds | Multiple gateway providers |
+| **Payment Gateway** | Processing time | <5 seconds | Multiple gateway providers (Phase 3+ real-money only) |
 
 ---
 

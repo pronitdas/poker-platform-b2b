@@ -37,7 +37,7 @@ Phase 3 (Scale)                                                                 
 
 ## 3.2 Phase 1: MVP (Months 1-8)
 
-**Phase Goal**: Deliver a functional poker platform supporting cash games for 1,000+ concurrent players with basic agent management.
+**Phase Goal**: Deliver a functional poker platform supporting point games for 1,000+ concurrent players with basic agent management.
 
 **Team Allocation**: 8-12 developers
 - 3 Backend (Go + Node.js)
@@ -131,7 +131,7 @@ Phase 3 (Scale)                                                                 
 **Technical Specifications**:
 - Go 1.21+ with goroutine per table pattern
 - State machine implemented with Go channels
-- Hand evaluation: `github.com/steveyen/glicko2` for rankings
+- Hand evaluation: 7-card evaluator using precomputed lookup tables; validated against large test corpus (e.g., 100K+ cases)
 - Rake calculation: 5% capped at $10 (configurable)
 - Redis: `table:{tableId}:state` with 1-hour TTL
 

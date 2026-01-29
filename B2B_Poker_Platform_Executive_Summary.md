@@ -16,7 +16,7 @@ The platform will consist of three primary components:
 | Component | Recommended Technology | Rationale |
 |-----------|----------------------|-----------|
 | **Game Engine** | Cocos Creator 3.8+ | Smaller footprint (15-25MB), TypeScript integration, optimized for mobile |
-| **Real-Time Game Server** | Go (Golang) | Goroutine concurrency handles 10K+ connections, no GC pauses |
+| **Real-Time Game Server** | Go (Golang) | Goroutine concurrency handles 10K+ connections; GC impact managed via pooling, tuning, and profiling |
 | **API Services** | Node.js (TypeScript) | I/O-bound workloads, shared ecosystem with frontend |
 | **WebSocket Layer** | Socket.IO v4 | Auto-reconnection, room management, fallback support |
 | **Primary Database** | PostgreSQL | ACID compliance, complex queries, JSONB support |

@@ -43,7 +43,7 @@ The B2B poker platform is designed as a **cloud-native, microservices-based arch
             └──────────────┼──────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Data Layer (PostgreSQL + Redis)                │
+│        Data Layer (PostgreSQL 15+ + Redis 7+)              │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
 │  │ User Data    │    │ Game State   │    │ Cache        │  │
 │  │ (Partitioned)│    │ (Redis)      │    │ (Sessions)   │  │
@@ -117,6 +117,8 @@ export class PokerTable extends Component {
 
 ### Backend: Go (Golang) for Real-Time Game Logic
 
+**Performance Note:** All benchmarks in this section assume Go 1.21+. Earlier versions may show different performance characteristics.
+
 **Why Go for Game Engine:**
 
 | Metric | Go (Goroutines) | Java (Threads) | Node.js (Event Loop) |
@@ -163,6 +165,8 @@ func (s *GameServer) handleTable(tableID string) {
 ```
 
 ### WebSocket Layer: Socket.IO v4
+
+**Note:** Socket.IO v4 is a WebSocket abstraction library that uses the WebSocket protocol (RFC 6455) with additional features (auto-reconnect, rooms, fallbacks). Socket.IO provides a higher-level API for real-time bidirectional communication while maintaining WebSocket performance benefits.
 
 **Why Socket.IO over Raw WebSockets:**
 

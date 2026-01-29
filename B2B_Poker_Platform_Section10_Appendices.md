@@ -79,15 +79,15 @@
 | **Operator** | Company managing the poker platform infrastructure | Service Provider |
 | **Licensee** | Legal entity holding gaming license (usually the Agent) | Regulatory |
 | **VIP Program** | Loyalty program for high-value players | Marketing |
-| **Bankroll** | Total funds available to a player for playing | Gaming Finance |
-| **Buy-in** | Amount required to join a cash game table | Game Entry |
+| **Bankroll** | Total points available to a player for playing | Point Balance |
+| **Entry** | Points required to join a point game table | Game Entry (Phase 3+ real-money: "Buy-in") |
 | **Entry Fee** | Fixed fee to enter a tournament | Tournament |
 | **Prize Pool** | Total money available to be won in a tournament | Tournament |
 | **Guarantee** | Minimum prize pool guaranteed by the operator | Tournament |
-| **Overlay** | Amount operator adds when prize pool exceeds buy-ins collected | Tournament |
+| **Overlay** | Amount operator adds when prize pool exceeds entries collected | Tournament |
 | **Freeroll** | Tournament with no entry fee | Marketing/Tournament |
 | **Satellite** | Tournament where winners qualify for larger tournament | Tournament |
-| **Cash Game** | Non-tournament poker with flexible buy-ins | Game Type |
+| **Point Game** | Non-tournament poker with flexible point entries | Game Type (Phase 3+ real-money: "Cash Game") |
 | **Sit & Go** | Single-table tournament starting when seats filled | Game Type |
 | **MTT (Multi-Table Tournament)** | Tournament spanning multiple tables with scheduled start | Game Type |
 
@@ -200,11 +200,15 @@
 | **OAuth 2.0 RFC** | https://tools.ietf.org/html/rfc6749 | Authorization framework |
 | **OWASP Top 10** | https://owasp.org/www-project-top-ten/ | Security risks |
 | **AES Specification** | https://csrc.nist.gov/publications/detail/fips/197/final | Encryption algorithm |
-| **PCI DSS** | https://www.pcisecuritystandards.org/ | Payment security |
+| **PCI DSS** | https://www.pcisecuritystandards.org/ | Payment security (Phase 3+ real-money only) |
 
 ---
 
 ## C. Regulatory Compliance Notes
+
+> **Note**: All regulatory compliance sections below apply only if real-money deployment is required in target markets. For point-based system (Phase 1-2), RNG certification remains relevant for game fairness, but PCI DSS, gaming license, KYC/AML requirements are reserved for Phase 3+ real-money expansion.
+
+
 
 ### RNG Certification Requirements
 
@@ -246,7 +250,7 @@
 | Test Suite | Description | Pass Criteria |
 |------------|-------------|---------------|
 | **Diehard Tests** | Battery of statistical randomness tests | All tests pass |
-| **FIPS 140-2** | Cryptographic module validation | Level 1 minimum |
+| **FIPS 140-2** | Cryptographic module validation | Level 1 minimum (applies only to cryptographic modules used for real-money transactions; point-based operation uses standard TLS) |
 | **AIS 31** | German gambling standards | Full compliance |
 | **GLI-19** | Global gaming standard | Complete certification |
 
@@ -278,10 +282,10 @@
    - Responsible gambling resources
 
 3. **Financial Controls**
-   - AML (Anti-Money Laundering) procedures
-   - KYC (Know Your Customer) verification
-   - Payment processing records
-   - Audit trails
+    - AML (Anti-Money Laundering) procedures (Phase 3+ real-money only)
+    - KYC (Know Your Customer) verification (Phase 3+ real-money only)
+    - Payment processing records (Phase 3+ real-money only)
+    - Audit trails
 
 4. **Technical Documentation**
    - System architecture
@@ -320,7 +324,7 @@
 | **India (DPDP Act)** | DPDP Act 2023 | Data principal rights, consent management |
 | **Australia (Privacy Act)** | APPs | Australian Privacy Principles compliance |
 
-### Anti-Money Laundering (AML) Compliance
+### Anti-Money Laundering (AML) Compliance (Phase 3+ Real-Money Only)
 
 | Requirement | Implementation | Threshold |
 |--------------|----------------|-----------|
@@ -337,13 +341,15 @@
 - Unusual betting patterns
 - High-volume transactions from new accounts
 
+> **Note**: For point-based system (Phase 1-2), implement simplified SuspiciousActivityMonitor for unusual point balance patterns without full AML compliance.
+
 ### Fairness & Transparency
 
 **House Edge Disclosure Requirements**
 
 | Game Type | Required Disclosure | Display Location |
 |-----------|---------------------|------------------|
-| **Cash Games** | Rake percentage | Table rules, lobby |
+| **Point Games** | Platform fee percentage | Table rules, lobby (Phase 3+ real-money: "Cash Games") |
 | **Tournaments** | Entry fee structure | Tournament info |
 | **Side Games** | RTP (Return to Player) | Game rules |
 | **VIP Program** | Rakeback percentages | Club dashboard |

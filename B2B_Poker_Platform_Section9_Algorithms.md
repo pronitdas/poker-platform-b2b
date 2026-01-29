@@ -24,7 +24,7 @@ The DoubleTapEvaluator implements a specialized 7-card hand evaluation algorithm
 
 ### 9.1.4 Rust Implementation: holdem-hand-evaluator
 
-The holdem-hand-evaluator Rust implementation achieves the highest raw performance among evaluated solutions, reaching 1.2 billion evaluations per second on a Ryzen 9 5950X processor. This performance advantage stems from Rusts zero-cost abstractions.
+The holdem-hand-evaluator Rust implementation achieves the highest raw performance among evaluated solutions, reaching 1.2 billion evaluations per second on a Ryzen 9 5950X processor (theoretical peak under optimal conditions). Actual production throughput depends on factors including load, memory pressure, and concurrency model. This performance advantage stems from Rust's zero-cost abstractions.
 
 ### 9.1.5 7-Card vs 5-Card Evaluation Trade-offs
 
@@ -37,7 +37,7 @@ Poker hand evaluation in Texas Hold em requires determining the best 5-card hand
 | **OMPEval (C++)** | 775,000,000 (seq) | 200KB | Multi-threaded |
 | **OMPEval (C++)** | 272,000,000 (rand) | 200KB | Multi-threaded |
 | **DoubleTapEvaluator** | 235,819,764 | 256KB | Single-threaded |
-| **holdem-hand-evaluator (Rust)** | 1,200,000,000 | 180KB | Single-threaded |
+| **holdem-hand-evaluator (Rust)** | 1.2B (theoretical peak on Ryzen 9 5950X) | 180KB | Single-threaded |
 
 ---
 
@@ -131,7 +131,7 @@ Hand evaluation performance directly impacts the platforms ability to support co
 |----------------|--------------------|-----------------|------------|
 | OMPEval C++ | 775,000,000 | 272,000,000 | 200KB |
 | DoubleTapEvaluator | 235,819,764 | N/A | 256KB |
-| holdem-hand-evaluator Rust | 1,200,000,000 | N/A | 180KB |
+| holdem-hand-evaluator Rust | 1.2B (theoretical peak) | N/A | 180KB |
 
 ### 9.5.2 WebSocket Throughput Metrics
 

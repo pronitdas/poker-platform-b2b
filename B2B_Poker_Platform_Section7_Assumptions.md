@@ -9,8 +9,9 @@
 | **Primary Market** | Southeast Asian market priority | Supports smaller app size preference (Cocos advantage) | Larger app size may affect download rates in bandwidth-constrained regions |
 | **Mobile Engine** | Cocos Creator 3.8+ for mobile client | 15-25 MB footprint vs 80-150 MB for Unity/Unreal | Higher user acquisition cost due to download friction |
 | **Game Type (MVP)** | Texas Hold'em only | Reduces complexity, focuses resources on core gameplay | Delayed market entry if additional game types required in MVP |
-| **Game Mode** | Cash games only | Tournaments require additional logic (schedules, prize pools) | Extended development timeline if tournaments needed in MVP |
+| **Game Mode** | Point games only | Tournaments require additional logic (schedules, prize pools) | Extended development timeline if tournaments needed in MVP |
 | **Economy Model** | Point-based system (no real-money transactions in app) | Simplifies compliance, reduces regulatory burden | Increased legal/regulatory complexity if real-money required |
+| **Real-Money Path** | Real-money features require Phase 3+ conditional expansion | All infrastructure below is for point-based operation; payment gateway integration, PCI DSS, and KYC/AML apply only if real-money deployment is required in target markets | Platform architecture supports future real-money expansion with additional compliance modules |
 | **Cloud Provider** | AWS, GCP, or Azure (client choice) | All three provide equivalent managed services | Potential re-architecture if specific provider features are mandatory |
 | **Communication Protocol** | WebSocket-first architecture | Essential for sub-100ms game latency | Inacceptable game experience without WebSocket support |
 | **Validation Strategy** | Server-side validation for all game logic | Prevents client-side cheating exploits | Security vulnerabilities if client can manipulate game state |
@@ -32,7 +33,7 @@
 | **Initial Platforms** | iOS and Android only (no desktop/web in MVP) | Cross-platform Cocos Creator supports web in Phase 2 |
 | **Languages** | English primary (multi-language support in Phase 2) | Internationalization architecture ready for future languages |
 | **Authentication** | JWT-based auth only (OAuth integration in Phase 2) | Modular auth layer allows provider addition |
-| **Payment Integration** | External only (client manages all payment processing) | API hooks for webhook notifications from external systems |
+| **Payment Integration** | External only (Phase 3+ if real-money required) | API hooks for webhook notifications from external systems |
 
 ---
 
@@ -120,8 +121,8 @@
 |------------|---------------------|------------------|
 | **Gaming Licenses** | Obtain and maintain for target jurisdictions | Audit logs, reporting tools, compliance dashboards |
 | **Data Privacy Laws** | GDPR, PDPA compliance for player data | Data export, anonymization, retention policies |
-| **Anti-Money Laundering** | KYC/AML processes for agents | Transaction history, suspicious activity reporting |
-| **Payment Processing** | Integration with preferred payment gateways | Webhook handlers, balance synchronization APIs |
+| **Anti-Money Laundering** | KYC/AML processes for agents (Phase 3+ if real-money required) | Transaction history, suspicious activity reporting |
+| **Payment Processing** | Integration with preferred payment gateways (Phase 3+ if real-money required) | Webhook handlers, balance synchronization APIs |
 | **App Store Policies** | Compliance with Apple/Google review guidelines | Technical support for resubmission if rejected |
 
 ### Infrastructure Dependencies
@@ -143,7 +144,7 @@
 |------------|------------|------------|
 | **Mobile Platforms** | iOS and Android only in MVP | Web support in Phase 2 using same Cocos codebase |
 | **Game Variants** | Texas Hold'em only (Omaha in Phase 2) | Architecture designed for game type extensibility |
-| **Tournament Support** | Cash games only (tournaments in Phase 2) | Separation of concerns allows independent tournament module |
+| **Tournament Support** | Point games only (tournaments in Phase 2) | Separation of concerns allows independent tournament module |
 | **Real-Time Players per Table** | Maximum 9 players per table | Standard poker table size, future scaling to tournament tables |
 | **WebSocket Connections** | 10,000 concurrent connections per server | Horizontal scaling via load balancer |
 

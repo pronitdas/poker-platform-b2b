@@ -698,9 +698,9 @@ func (t *GameTable) calculateSidePots() []SidePot {
 
 **Key Features**:
 - Texas Hold'em rule set (No Limit, Pot Limit, Fixed Limit)
-- Rake calculation based on club configuration
+- Platform fee (formerly rake) calculation based on club configuration
 - Timeout enforcement (auto-fold on inactivity)
-- Buy-in/stack management
+- Entry/stack management
 - Table configuration enforcement (blinds, ante, max players)
 
 **Validation Rules**:
@@ -1333,101 +1333,75 @@ CREATE POLICY agent_isolation ON clubs
 
 ---
 
-### 2.3.3 Financial Operations (5 weeks, High Complexity)
+### 2.3.3 Point Balance Operations (5 weeks, High Complexity)
 
-**Description**: Financial management system handling player deposits, withdrawals, balance adjustments, and transaction auditing.
+**Description**: Point balance management system handling point allocations, redemptions, balance adjustments, and transaction auditing.
 
 **Key Features**:
-- Deposit processing (multiple payment gateways)
-- Withdrawal requests and approval workflow
+- Point allocation (external agent management)
+- Point redemption requests (external agent management)
 - Manual balance adjustments (agent-only)
 - Transaction history with filters
-- Automated rake collection
-- Multi-currency support (future)
+- Automated platform fee collection
+- Multi-point-type support (future)
 
-**Payment Gateway Integration**:
+**Point Balance Service (Phase 1-2)**:
 
 ```typescript
-// payment.service.ts
-import Stripe from 'stripe';
+// point-balance.service.ts
 import { Transaction, TransactionType } from '../entities/transaction.entity';
 
 @Injectable()
-export class PaymentService {
-    private stripe: Stripe;
-
-    constructor(private readonly configService: ConfigService) {
-        this.stripe = new Stripe(configService.get('STRIPE_SECRET_KEY'));
-    }
-
-    async processDeposit(
+export class PointBalanceService {
+    async allocatePoints(
         playerId: string,
-        amount: number,
-        paymentMethodId: string,
-        agentId: string
+        points: number,
+        agentId: string,
+        reason: string
     ): Promise<Transaction> {
-        // 1. Create Stripe payment intent
-        const paymentIntent = await this.stripe.paymentIntents.create({
-            amount: amount * 100, // Convert to cents
-            currency: 'usd',
-            payment_method: paymentMethodId,
-            confirm: true,
-            metadata: {
-                playerId,
-                type: 'deposit'
-            }
-        });
+        // 1. Credit player balance with points
+        await this.creditPlayerBalance(playerId, points);
 
-        // 2. If successful, credit player balance
-        if (paymentIntent.status === 'succeeded') {
-            await this.creditPlayerBalance(playerId, amount);
-
-            // 3. Record transaction
-            const transaction = await this.createTransaction({
-                playerId,
-                agentId,
-                type: TransactionType.DEPOSIT,
-                amount,
-                status: 'completed',
-                gateway: 'stripe',
-                gatewayTransactionId: paymentIntent.id
-            });
-
-            return transaction;
-        }
-
-        throw new Error('Payment failed');
-    }
-
-    async processWithdrawal(
-        playerId: string,
-        amount: number,
-        bankAccountId: string,
-        agentId: string
-    ): Promise<Transaction> {
-        // 1. Verify player has sufficient balance
-        const player = await this.playersService.findOne(playerId, agentId);
-        if (player.balance.lt(amount)) {
-            throw new Error('Insufficient balance');
-        }
-
-        // 2. Create pending transaction
+        // 2. Record transaction
         const transaction = await this.createTransaction({
             playerId,
             agentId,
-            type: TransactionType.WITHDRAWAL,
-            amount,
-            status: 'pending',
-            gateway: 'bank_transfer'
+            type: TransactionType.ALLOCATION,
+            amount: points,
+            status: 'completed',
+            reason
         });
-
-        // 3. Debit player balance (hold amount)
-        await this.debitPlayerBalance(playerId, amount);
 
         return transaction;
     }
 
-    async approveWithdrawal(
+    async requestPointRedemption(
+        playerId: string,
+        points: number,
+        agentId: string
+    ): Promise<Transaction> {
+        // 1. Verify player has sufficient balance
+        const player = await this.playersService.findOne(playerId, agentId);
+        if (player.balance.lt(points)) {
+            throw new Error('Insufficient balance');
+        }
+
+        // 2. Create pending transaction (external processing by agent)
+        const transaction = await this.createTransaction({
+            playerId,
+            agentId,
+            type: TransactionType.REDEMPTION,
+            amount: points,
+            status: 'pending'
+        });
+
+        // 3. Debit player balance (hold amount)
+        await this.debitPlayerBalance(playerId, points);
+
+        return transaction;
+    }
+
+    async approveRedemption(
         transactionId: string,
         agentId: string
     ): Promise<Transaction> {
@@ -1439,8 +1413,8 @@ export class PaymentService {
             throw new Error('Invalid transaction');
         }
 
-        // 1. Process bank transfer (integration with payment provider)
-        await this.processBankTransfer(transaction);
+        // 1. Agent processes redemption externally
+        // Platform only records approval
 
         // 2. Update transaction status
         transaction.status = 'completed';
@@ -1520,10 +1494,10 @@ export class Transaction {
     status: string;
 
     @Column({ nullable: true })
-    gateway: string; // stripe, bank_transfer, paypal
+    gateway: string; // agent_external (Phase 3+ real-money: stripe, bank_transfer, paypal)
 
     @Column({ nullable: true })
-    gatewayTransactionId: string;
+    gatewayTransactionId: string; // External reference ID for agent-managed transactions (Phase 3+ only)
 
     @Column({ type: 'jsonb', nullable: true })
     metadata: Record<string, any>;
@@ -1536,10 +1510,10 @@ export class Transaction {
 }
 
 export enum TransactionType {
-    DEPOSIT = 'deposit',
-    WITHDRAWAL = 'withdrawal',
-    ADJUSTMENT = 'adjustment',
-    RAKE = 'rake',
+    ALLOCATION = 'allocation', // Points allocated by agent
+    REDEMPTION = 'redemption', // Points redeemed (external processing by agent)
+    ADJUSTMENT = 'adjustment', // Manual balance adjustments
+    PLATFORM_FEE = 'platform_fee', // Platform service charge (formerly rake)
     BONUS = 'bonus'
 }
 ```
@@ -1553,9 +1527,9 @@ export enum TransactionType {
 **Key Features**:
 - Table creation wizard
 - Blind structure configuration
-- Rake rules setup
-- Tournament settings (buy-in, prize pool, structure)
-- Seat limits and table type (cash game, SNG, MTT)
+- Platform fee rules setup (formerly rake)
+- Tournament settings (entry fee, prize pool, structure)
+- Seat limits and table type (point game, SNG, MTT)
 
 **Table Configuration Form**:
 
@@ -1567,14 +1541,14 @@ import * as z from 'zod';
 
 const tableConfigSchema = z.object({
     name: z.string().min(1).max(50),
-    type: z.enum(['cash_game', 'sitngo', 'tournament']),
+    type: z.enum(['point_game', 'sitngo', 'tournament']),
     maxPlayers: z.number().min(2).max(9),
     smallBlind: z.number().positive(),
     bigBlind: z.number().positive(),
     ante: z.number().min(0),
-    buyInMin: z.number().positive(),
-    buyInMax: z.number().positive(),
-    rakeConfig: z.object({
+    entryMin: z.number().positive(),
+    entryMax: z.number().positive(),
+    platformFeeConfig: z.object({
         type: z.enum(['percentage', 'fixed', 'hybrid']),
         percentage: z.number().min(0).max(1),
         cap: z.number().min(0),
@@ -1605,7 +1579,7 @@ function TableConfigForm() {
             <div>
                 <label>Table Type</label>
                 <select {...register('type')}>
-                    <option value="cash_game">Cash Game</option>
+                    <option value="point_game">Point Game</option>
                     <option value="sitngo">Sit & Go</option>
                     <option value="tournament">Tournament</option>
                 </select>
@@ -1628,40 +1602,40 @@ function TableConfigForm() {
                 <input type="number" {...register('bigBlind', { valueAsNumber: true })} />
             </div>
 
-            {/* Buy-in Range */}
+            {/* Entry Range */}
             <div>
-                <label>Min Buy-in</label>
-                <input type="number" {...register('buyInMin', { valueAsNumber: true })} />
+                <label>Min Entry</label>
+                <input type="number" {...register('entryMin', { valueAsNumber: true })} />
             </div>
 
             <div>
-                <label>Max Buy-in</label>
-                <input type="number" {...register('buyInMax', { valueAsNumber: true })} />
+                <label>Max Entry</label>
+                <input type="number" {...register('entryMax', { valueAsNumber: true })} />
             </div>
 
-            {/* Rake Configuration */}
+            {/* Platform Fee Configuration */}
             <div>
-                <label>Rake Type</label>
-                <select {...register('rakeConfig.type')}>
+                <label>Platform Fee Type</label>
+                <select {...register('platformFeeConfig.type')}>
                     <option value="percentage">Percentage</option>
                     <option value="fixed">Fixed</option>
                     <option value="hybrid">Hybrid</option>
                 </select>
             </div>
 
-            {watch('rakeConfig.type') === 'percentage' && (
+            {watch('platformFeeConfig.type') === 'percentage' && (
                 <>
                     <div>
-                        <label>Rake Percentage</label>
+                        <label>Platform Fee Percentage</label>
                         <input
                             type="number"
                             step="0.01"
-                            {...register('rakeConfig.percentage', { valueAsNumber: true })}
+                            {...register('platformFeeConfig.percentage', { valueAsNumber: true })}
                         />
                     </div>
                     <div>
-                        <label>Rake Cap</label>
-                        <input type="number" {...register('rakeConfig.cap', { valueAsNumber: true })} />
+                        <label>Platform Fee Cap</label>
+                        <input type="number" {...register('platformFeeConfig.cap', { valueAsNumber: true })} />
                     </div>
                 </>
             )}
@@ -1932,7 +1906,9 @@ CREATE TRIGGER audit_transactions
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
 ```
 
-**AML Monitoring Algorithm**:
+**AML Monitoring Algorithm (Phase 3+ Real-Money Expansion Only)**:
+
+> **Note**: AML (Anti-Money Laundering) monitoring applies to real-money transactions. For the point-based system (Phase 1-2), use the simplified SuspiciousActivityMonitor for unusual point balance patterns. The comprehensive AML system below is reserved for Phase 3+ if real-money deployment is required.
 
 ```go
 // aml_monitor.go
@@ -1951,7 +1927,7 @@ type SuspiciousActivity struct {
 func (m *AMLMonitor) AnalyzePlayer(playerID string, timeWindow time.Duration) ([]SuspiciousActivity, error) {
     var activities []SuspiciousActivity
 
-    // 1. Rapid deposits and withdrawals (layering pattern)
+    // 1. Rapid point allocations and redemptions (layering pattern)
     layeringRisk, err := m.detectLayering(playerID, timeWindow)
     if err != nil {
         return nil, err
@@ -1985,8 +1961,8 @@ func (m *AMLMonitor) detectLayering(playerID string, timeWindow time.Duration) (
     query := `
         SELECT
             COUNT(*) as transaction_count,
-            SUM(CASE WHEN type = 'deposit' THEN amount ELSE 0 END) as total_deposits,
-            SUM(CASE WHEN type = 'withdrawal' THEN amount ELSE 0 END) as total_withdrawals
+            SUM(CASE WHEN type = 'allocation' THEN amount ELSE 0 END) as total_allocations,
+            SUM(CASE WHEN type = 'redemption' THEN amount ELSE 0 END) as total_redemptions
         FROM transactions
         WHERE player_id = $1
             AND created_at >= NOW() - $2::INTERVAL
@@ -1994,12 +1970,12 @@ func (m *AMLMonitor) detectLayering(playerID string, timeWindow time.Duration) (
     `
 
     var transactionCount int
-    var totalDeposits, totalWithdrawals float64
+    var totalAllocations, totalRedemptions float64
 
     err := m.db.QueryRow(query, playerID, timeWindow).Scan(
         &transactionCount,
-        &totalDeposits,
-        &totalWithdrawals,
+        &totalAllocations,
+        &totalRedemptions,
     )
 
     if err != nil {
@@ -2007,17 +1983,17 @@ func (m *AMLMonitor) detectLayering(playerID string, timeWindow time.Duration) (
     }
 
     // Risk calculation: high transaction count + high turnover rate
-    turnoverRate := totalWithdrawals / totalDeposits
+    turnoverRate := totalRedemptions / totalAllocations
     riskScore := float64(transactionCount) * 0.01 + turnoverRate * 0.5
 
     return SuspiciousActivity{
         PlayerID:   playerID,
         RiskScore:  min(riskScore, 1.0),
-        Reason:     "Rapid deposits and withdrawals (layering)",
+        Reason:     "Rapid point allocations and redemptions (layering pattern)",
         Details: map[string]interface{}{
             "transaction_count": transactionCount,
-            "total_deposits":   totalDeposits,
-            "total_withdrawals": totalWithdrawals,
+            "total_allocations": totalAllocations,
+            "total_redemptions": totalRedemptions,
             "turnover_rate":    turnoverRate,
         },
         DetectedAt: time.Now(),

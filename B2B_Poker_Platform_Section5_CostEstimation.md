@@ -58,13 +58,13 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 
 | Service | Provider | Monthly Cost | Phase 1 Total | Usage |
 |---------|----------|--------------|---------------|-------|
-| **Payment Gateway** | Stripe / PayPal | $200 | $1,600 - $2,400 | Transaction processing |
+| **Payment Gateway** | Stripe / PayPal | $200 | $0 - $0 | Reserved for Phase 3+ real-money expansion |
 | **SMS Gateway** | Twilio / SNS | $100 | $800 - $1,200 | OTP, notifications |
 | **Email Service** | SendGrid / SES | $50 | $400 - $600 | Transactional emails |
 | **CDN** | CloudFront / Cloudflare | $150 | $1,200 - $1,800 | Static asset delivery |
 | **Domain & SSL** | Various | $50 | $400 | Domain certificates |
 | **Monitoring & Alerting** | PagerDuty / Opsgenie | $100 | $800 - $1,200 | Incident management |
-| **Total Services** | - | - | **$5,200 - $7,600** | - |
+| **Total Services** | - | - | **$3,600 - $5,200** | - |
 
 ### Licensing & Tools (Phase 1)
 
@@ -85,9 +85,9 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 |----------|--------------|---------------|----------------------|
 | Development Team | $154,000 | $230,000 | 79% - 82% |
 | Infrastructure | $16,000 | $25,500 | 8% - 9% |
-| Third-Party Services | $5,200 | $7,600 | 3% - 3% |
+| Third-Party Services | $3,600 | $5,200 | 2% - 2% |
 | Licensing & Tools | $9,600 | $16,200 | 5% - 6% |
-| **Phase 1 Total** | **$184,800** | **$279,300** | **100%** |
+| **Phase 1 Total** | **$183,200** | **$276,900** | **100%** |
 
 ---
 
@@ -119,11 +119,11 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 
 | Service | Provider | Monthly Cost | Phase 2 Total | Usage |
 |---------|----------|--------------|---------------|-------|
-| **Payment Gateway** | Stripe / PayPal | $250 | $750 - $1,000 | Higher transaction volume |
+| **Payment Gateway** | Stripe / PayPal | $250 | $0 - $0 | Reserved for Phase 3+ real-money expansion |
 | **SMS Gateway** | Twilio / SNS | $150 | $450 - $600 | Tournament notifications |
 | **Analytics Tools** | Mixpanel / Amplitude | $200 | $600 - $800 | User behavior analytics |
 | **Advanced Monitoring** | Datadog / New Relic | $200 | $600 - $800 | Enhanced observability |
-| **Total Services** | - | - | **$2,400 - $3,200** | - |
+| **Total Services** | - | - | **$1,650 - $2,200** | - |
 
 ### Licensing & Tools (Phase 2)
 
@@ -140,9 +140,9 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 |----------|--------------|---------------|----------------------|
 | Development Team | $40,000 | $67,000 | 71% - 75% |
 | Infrastructure | $11,000 | $18,000 | 20% - 20% |
-| Third-Party Services | $2,400 | $3,200 | 4% - 4% |
+| Third-Party Services | $1,650 | $2,200 | 3% - 3% |
 | Licensing & Tools | $1,300 | $1,900 | 2% - 2% |
-| **Phase 2 Total** | **$54,700** | **$90,100** | **100%** |
+| **Phase 2 Total** | **$53,950** | **$89,100** | **100%** |
 
 ---
 
@@ -174,7 +174,8 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 |---------|----------|--------------|---------------|-------|
 | **Enterprise Support** | AWS / GCP Premium | $300 | $600 - $900 | Technical support SLA |
 | **Advanced Monitoring** | Datadog / New Relic | $300 | $600 - $900 | Enterprise monitoring |
-| **Total Services** | - | - | **$1,200 - $1,800** | - |
+| **Payment Gateway (Optional)** | Stripe / PayPal | $200-300 | $400 - $600 | Real-money processing (if required) |
+| **Total Services** | - | - | **$1,600 - $2,400** | - |
 
 ### Licensing & Tools (Phase 3)
 
@@ -188,11 +189,11 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 
 | Category | Low Estimate | High Estimate | Percentage of Phase 3 |
 |----------|--------------|---------------|----------------------|
-| Development Team | $14,000 | $23,000 | 64% - 66% |
-| Infrastructure | $6,000 | $9,800 | 27% - 28% |
-| Third-Party Services | $1,200 | $1,800 | 5% - 5% |
-| Licensing & Tools | $200 | $900 | 1% - 1% |
-| **Phase 3 Total** | **$21,400** | **$35,500** | **100%** |
+| Development Team | $14,000 | $23,000 | 63% - 65% |
+| Infrastructure | $6,000 | $9,800 | 26% - 27% |
+| Third-Party Services | $1,600 | $2,400 | 7% - 7% |
+| Licensing & Tools | $200 | $900 | 1% - 2% |
+| **Phase 3 Total** | **$21,800** | **$36,100** | **100%** |
 
 ---
 
@@ -319,13 +320,13 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 
 | Service | Provider | Pricing Model | Low Estimate | High Estimate | Justification |
 |---------|----------|---------------|--------------|---------------|---------------|
-| **Payment Gateway** | Stripe | 2.9% + $0.30 per transaction | $1,600 | $2,400 | Industry standard |
+| **Payment Gateway** | Stripe | 2.9% + $0.30 per transaction | $0 | $0 | Reserved for Phase 3+ real-money expansion |
 | **SMS Gateway** | Twilio | Pay per message | $800 | $1,200 | OTP, alerts |
 | **Email Service** | SendGrid | Pay per email | $400 | $600 | Transactional emails |
 | **CDN** | CloudFlare | Pay per bandwidth | $1,200 | $1,800 | Asset delivery |
 | **Monitoring** | Datadog | Host-based pricing | $1,600 | $2,400 | Full-stack monitoring |
 | **Analytics** | Mixpanel | Event-based pricing | $600 | $800 | User analytics |
-| **Total Services** | - | - | **$6,200** | **$9,200** | - |
+| **Total Services** | - | - | **$4,600** | **$6,800** | - |
 
 ### Service Tier Comparison
 
@@ -393,19 +394,19 @@ This section provides a detailed cost breakdown for the B2B poker platform devel
 
 | Phase | Development | Infrastructure | Services | Licensing | Subtotal | With 15% Contingency |
 |-------|-------------|----------------|----------|-----------|----------|----------------------|
-| **Phase 1 (MVP)** | $154,000 | $16,000 | $5,200 | $9,600 | $184,800 | $212,520 |
-| **Phase 2 (Enhancement)** | $40,000 | $11,000 | $2,400 | $1,300 | $54,700 | $62,905 |
-| **Phase 3 (Scale)** | $14,000 | $6,000 | $1,200 | $200 | $21,400 | $24,610 |
-| **Total (Low)** | $208,000 | $33,000 | $8,800 | $11,100 | $260,900 | $300,035 |
-| **Total (High)** | $320,000 | $53,300 | $11,600 | $19,000 | $403,900 | $464,485 |
+| **Phase 1 (MVP)** | $154,000 | $16,000 | $3,600 | $9,600 | $183,200 | $210,680 |
+| **Phase 2 (Enhancement)** | $40,000 | $11,000 | $1,650 | $1,300 | $53,950 | $62,043 |
+| **Phase 3 (Scale)** | $14,000 | $6,000 | $1,600 | $200 | $21,800 | $25,070 |
+| **Total (Low)** | $208,000 | $33,000 | $6,850 | $11,100 | $258,950 | $297,793 |
+| **Total (High)** | $320,000 | $53,300 | $8,000 | $19,000 | $400,300 | $460,345 |
 
 ### Final Investment Range
 
 | Metric | Low Estimate | High Estimate | Average |
 |--------|--------------|---------------|---------|
-| **Base Project Cost** | $260,900 | $403,900 | $332,400 |
-| **With 15% Contingency** | $300,035 | $464,485 | $382,260 |
-| **Per Month (13 months)** | $23,080 | $35,730 | $29,405 |
+| **Base Project Cost** | $258,950 | $400,300 | $329,625 |
+| **With 15% Contingency** | $297,793 | $460,345 | $379,069 |
+| **Per Month (13 months)** | $22,907 | $35,411 | $29,159 |
 | **Per Developer Hour** | $16 | $25 | $20 |
 
 ### Cost Allocation by Category (Percentage)
@@ -521,11 +522,13 @@ The B2B poker platform requires a total investment of **$260,900 - $403,900** (b
 
 **Recommended Investment Path:**
 
-- **Initial Commitment**: Phase 1 (MVP) - $184,800 (low) to $279,300 (high)
-- **Proceed to Phase 2**: Based on Phase 1 success metrics - $54,700 to $90,100
-- **Proceed to Phase 3**: Based on growth and scale requirements - $21,400 to $35,500
+- **Initial Commitment**: Phase 1 (MVP) - $183,200 (low) to $276,900 (high)
+- **Proceed to Phase 2**: Based on Phase 1 success metrics - $53,950 to $89,100
+- **Proceed to Phase 3**: Based on growth and scale requirements - $21,800 to $36,100 (includes optional payment gateway if real-money required)
 
-**Total Investment Range: $260,900 - $403,900 (base) or $300,035 - $464,485 (with contingency)**
+**Total Investment Range: $258,950 - $400,300 (base) or $297,793 - $460,345 (with contingency)**
+
+**Note: Payment processing costs ($1,600-$2,400 per phase) are reserved for Phase 3+ real-money expansion. Point-based system requires no payment gateway integration.**
 
 This investment delivers a production-ready, enterprise-grade B2B poker platform that can scale to support 100K+ concurrent players with linear horizontal scaling, complete multi-tenancy, and advanced anti-cheat capabilities. The platform is positioned to compete with industry leaders at 60% of the typical development cost.
 
