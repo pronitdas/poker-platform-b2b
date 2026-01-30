@@ -1,0 +1,294 @@
+# B2B Poker Platform Configuration
+# All configuration settings for the poker platform
+
+# Application Settings
+app:
+  name: "poker-platform"
+  environment: "development"  # development, staging, production
+  log_level: "debug"         # debug, info, warn, error
+  host: "0.0.0.0"
+  port: 3002
+
+# Game Server Configuration
+game:
+  max_players_per_table: 9
+  min_players_to_start: 2
+  default_table_timeout: 300  # seconds
+  auto_muck_winners: true
+  show_down_timer: 10         # seconds
+
+# Database Configuration (PostgreSQL)
+database:
+  host: "localhost"
+  port: 5432
+  username: "postgres"
+  password: "postgres"
+  name: "poker_platform"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+  ssl_mode: "disable"
+
+# Redis Configuration
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+  pool_size: 10
+  min_idle_conns: 5
+
+# Kafka Configuration for Fraud Alerts
+kafka:
+  brokers:
+    - "localhost:9092"
+  topic: "fraud-alerts"
+  producer_group: "fraud-detection"
+  async_mode: true
+  max_retries: 3
+  retry_backoff: 100ms
+  flush_frequency: 1s
+  flush_messages: 100
+  batch_size: 100
+  batch_timeout: 5s
+  required_acks: "wait_for_all"  # wait_for_all, wait_for_local, no_acks
+  compression: "lz4"              # none, gzip, snappy, lz4, zstd
+
+# ClickHouse Configuration for Analytics
+clickhouse:
+  host: "localhost"
+  port: 9000
+  database: "poker_analytics"
+  username: "default"
+  password: ""
+  secure: false
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_timeout: 30s
+
+# Fraud Detection Configuration
+fraud:
+  # Bot Detection
+  bot_detection:
+    enabled: true
+    action_time_mean_threshold: 3.0      # seconds
+    action_time_std_dev_threshold: 0.5   # seconds
+    bet_precision_threshold: 0.95
+    hands_per_hour_threshold: 100
+    concurrent_tables_threshold: 10
+    consistency_score_threshold: 0.85
+
+    # ML Model Weights
+    heuristic_weight: 0.50
+    isolation_forest_weight: 0.25
+    lstm_weight: 0.25
+
+    # Thresholds
+    bot_score_threshold: 0.80
+    review_score_threshold: 0.60
+
+  # Collusion Detection
+  collusion_detection:
+    enabled: true
+    co_occurrence_threshold: 50
+    seating_adjacency_threshold: 10
+    stake_overlap_threshold: 0.7
+    arrival_sync_threshold: 5m
+    departure_sync_threshold: 5m
+
+    # Pairwise behavior
+    aggression_delta_threshold: 0.3
+    pot_delta_threshold: 0.4
+    showdown_delta_threshold: 0.25
+    check_down_threshold: 0.8
+
+    # Chip flow
+    chip_transfer_threshold: 10000
+    ev_loss_threshold: 0.15
+    transfer_frequency_threshold: 5
+
+    # Network
+    ip_match_threshold: 5
+    device_match_threshold: 2
+    network_match_threshold: 10
+
+    # Score thresholds
+    collusion_score_threshold: 0.75
+    soft_play_score_threshold: 0.70
+    review_score_threshold: 0.50
+    critical_score_threshold: 0.85
+
+  # Multi-Account Detection
+  multi_account_detection:
+    enabled: true
+    device_match_threshold: 3
+    ip_match_threshold: 5
+    session_overlap_threshold: 3
+    behavioral_match_threshold: 0.8
+    network_24h_threshold: 10
+    network_7d_threshold: 20
+
+    # Weights
+    device_match_weight: 0.40
+    ip_match_weight: 0.30
+    session_overlap_weight: 0.15
+    behavioral_match_weight: 0.15
+
+    # Score thresholds
+    multi_account_score_threshold: 0.85
+    review_score_threshold: 0.60
+
+  # Rule-Based Detection
+  rule_detection:
+    enabled: true
+    rules:
+      - name: "excessive_volume"
+        enabled: true
+        severity: "high"
+        cooldown: 24h
+      - name: "perfect_win_rate"
+        enabled: true
+        severity: "critical"
+        cooldown: 48h
+      - name: "same_ip_multi_account"
+        enabled: true
+        severity: "high"
+        cooldown: 12h
+      - name: "chip_dumping"
+        enabled: true
+        severity: "critical"
+        cooldown: 72h
+      - name: "bot_like_timing"
+        enabled: true
+        severity: "high"
+        cooldown: 24h
+      - name: "collusive_playing"
+        enabled: true
+        severity: "critical"
+        cooldown: 168h
+      - name: "suspicious_bet_sizing"
+        enabled: true
+        severity: "medium"
+        cooldown: 12h
+      - name: "rapid_table_hopping"
+        enabled: true
+        severity: "medium"
+        cooldown: 6h
+      - name: "sustained_win_rate"
+        enabled: true
+        severity: "medium"
+        cooldown: 48h
+      - name: "new_account_high_win"
+        enabled: true
+        severity: "high"
+        cooldown: 24h
+      - name: "low_diversity_pattern"
+        enabled: true
+        severity: "low"
+        cooldown: 12h
+
+  # Risk Scoring
+  risk_scoring:
+    enabled: true
+    weights:
+      bot: 0.30
+      collusion: 0.25
+      multi_account: 0.20
+      rules: 0.15
+      historical: 0.10
+
+    thresholds:
+      high_risk: 0.80
+      medium_risk: 0.60
+      review_recommended: 0.50
+
+  # Caching
+  cache:
+    risk_score_ttl: 5m
+    feature_cache_ttl: 1m
+    player_profile_ttl: 10m
+
+# Prometheus Metrics Configuration
+metrics:
+  enabled: true
+  path: "/metrics"
+  port: 9090
+  namespace: "poker"
+
+# Authentication Configuration
+auth:
+  jwt_secret: "your-super-secret-jwt-key-change-in-production"
+  jwt_expiry: 24h
+  jwt_refresh_expiry: 168h
+  bcrypt_cost: 12
+
+# Rate Limiting
+rate_limit:
+  enabled: true
+  requests_per_minute: 60
+  burst_size: 10
+
+# Table Stakes Configuration
+stakes:
+  - name: "NL2"
+    min_buy_in: 200
+    max_buy_in: 2000
+    small_blind: 1
+    big_blind: 2
+  - name: "NL5"
+    min_buy_in: 500
+    max_buy_in: 5000
+    small_blind: 2
+    big_blind: 5
+  - name: "NL10"
+    min_buy_in: 1000
+    max_buy_in: 10000
+    small_blind: 5
+    big_blind: 10
+  - name: "NL25"
+    min_buy_in: 2500
+    max_buy_in: 25000
+    small_blind: 10
+    big_blind: 25
+  - name: "NL50"
+    min_buy_in: 5000
+    max_buy_in: 50000
+    small_blind: 25
+    big_blind: 50
+
+# Agent/Club Configuration
+agents:
+  default_rake_percentage: 0.05
+  max_clubs_per_agent: 10
+  min_players_per_club: 10
+
+# Tournament Configuration
+tournaments:
+  default_late_reg: 60  # minutes
+  default_level_duration: 15  # minutes
+  rebuy_timeout: 30  # seconds
+  add_on_timeout: 15  # seconds
+
+# Logging Configuration
+logging:
+  format: "json"  # json, text
+  output: "stdout"  # stdout, file
+  file_path: "/var/log/poker/platform.log"
+  max_size: 100  # MB
+  max_age: 30    # days
+  max_backups: 10
+  compress: true
+
+# Security Configuration
+security:
+  encryption_key: "your-32-byte-encryption-key"
+  enable_two_factor: false
+  max_sessions_per_user: 3
+  session_timeout: 24h
+  password_policy:
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_number: true
+    require_special: false
+    max_age_days: 90
