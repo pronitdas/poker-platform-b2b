@@ -2,16 +2,19 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	"poker-platform/internal/fraud"
 	"poker-platform/internal/game"
 	"poker-platform/pkg/rng"
 )
@@ -26,9 +29,11 @@ var upgrader = websocket.Upgrader{
 
 // GameServer manages WebSocket connections for poker tables
 type GameServer struct {
-	tables   map[string]*game.Table
-	rng      *rng.System
-	upgrader websocket.Upgrader
+	tables       map[string]*game.Table
+	rng          *rng.System
+	upgrader     websocket.Upgrader
+	fraudService *fraud.FraudService
+	mu           sync.RWMutex
 }
 
 func NewGameServer() (*GameServer, error) {
@@ -37,10 +42,44 @@ func NewGameServer() (*GameServer, error) {
 		return nil, fmt.Errorf("failed to initialize RNG: %w", err)
 	}
 
+	// Initialize fraud detection components
+	botDetector := fraud.NewBotDetector(nil)
+	collusionDetector := fraud.NewCollusionDetector(&fraud.CollusionDetectorConfig{
+		MaxPlayersPerTable: 9,
+		MinCoOccurrence:    10,
+		SoftPlayThreshold:  0.15,
+	})
+	multiAccountDetector := fraud.NewMultiAccountDetector(&fraud.MultiAccountDetectorConfig{
+		SessionOverlapThreshold: 0.8,
+		IPCorrelationThreshold:  0.5,
+	})
+	ruleEngine := fraud.NewRuleEngine()
+
+	alertService := fraud.NewAlertService(nil)
+	riskScorer := fraud.NewRiskScorer(&fraud.RiskScorerConfig{
+		BotWeight:          0.30,
+		CollusionWeight:    0.25,
+		MultiAccountWeight: 0.20,
+		RuleWeight:         0.15,
+		HistoryWeight:      0.10,
+	})
+
+	fraudConfig := fraud.DefaultFraudServiceConfig()
+	fraudService := fraud.NewFraudService(
+		fraudConfig,
+		botDetector,
+		collusionDetector,
+		multiAccountDetector,
+		ruleEngine,
+		riskScorer,
+		alertService,
+	)
+
 	return &GameServer{
-		tables:   make(map[string]*game.Table),
-		rng:      rngSystem,
-		upgrader: upgrader,
+		tables:       make(map[string]*game.Table),
+		rng:          rngSystem,
+		upgrader:     upgrader,
+		fraudService: fraudService,
 	}, nil
 }
 
@@ -125,6 +164,27 @@ func (s *GameServer) handleMessage(conn *websocket.Conn, table *game.Table, msg 
 			return
 		}
 
+		// Send to fraud detection service (non-blocking)
+		go func() {
+			fraudAction := s.createFraudAction(playerID, tableID, action, msg)
+			if fraudAction != nil {
+				result, err := s.fraudService.ProcessPlayerAction(context.Background(), fraudAction)
+				if err != nil {
+					log.Printf("Fraud detection error for player %s: %v", playerID, err)
+					return
+				}
+				if result != nil && result.RequiresAction {
+					log.Printf("Fraud alert for player %s: %v", playerID, result.RecommendedActions)
+					// Send fraud alert to client
+					s.sendMessage(conn, map[string]interface{}{
+						"type":    "fraud_alert",
+						"message": "Suspicious activity detected",
+						"actions": result.RecommendedActions,
+					})
+				}
+			}
+		}()
+
 	case "leave":
 		playerID := msg["player_id"].(string)
 		if err := table.PlayerLeaves(playerID); err != nil {
@@ -150,6 +210,51 @@ func parseAction(action string) game.PlayerAction {
 	default:
 		return game.ActionFold
 	}
+}
+
+// createFraudAction converts a game action to a fraud detection action
+func (s *GameServer) createFraudAction(playerID, tableID string, action game.PlayerActionRequest, msg map[string]interface{}) *fraud.PlayerAction {
+	decisionTime := 0
+	if dt, ok := msg["decision_time_ms"].(float64); ok {
+		decisionTime = int(dt)
+	}
+
+	var potSize, stackSize int64
+	if ps, ok := msg["pot_size"].(float64); ok {
+		potSize = int64(ps)
+	}
+	if ss, ok := msg["stack_size"].(float64); ok {
+		stackSize = int64(ss)
+	}
+
+	position := 0
+	if pos, ok := msg["position"].(float64); ok {
+		position = int(pos)
+	}
+
+	return &fraud.PlayerAction{
+		ID:           fmt.Sprintf("action_%d", time.Now().UnixNano()),
+		PlayerID:     playerID,
+		TableID:      tableID,
+		AgentID:      "", // Would be set from connection context
+		ClubID:       "", // Would be set from connection context
+		ActionType:   action.Action.String(),
+		Amount:       action.Amount,
+		Position:     position,
+		Timestamp:    time.Now(),
+		DecisionTime: decisionTime,
+		HandPhase:    getHandPhase(action.Action),
+		PotSize:      potSize,
+		StackSize:    stackSize,
+		IPAddress:    "", // Would be extracted from connection
+		DeviceID:     "", // Would be extracted from connection
+	}
+}
+
+// getHandPhase maps game phase to fraud detection hand phase
+func getHandPhase(action game.PlayerAction) string {
+	// In production, this would come from the table state
+	return "unknown"
 }
 
 func (s *GameServer) sendMessage(conn *websocket.Conn, data interface{}) {

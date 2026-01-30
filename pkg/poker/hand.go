@@ -109,11 +109,11 @@ func (h HandRank) String() string {
 
 // EvaluatedHand represents a hand with its evaluation result
 type EvaluatedHand struct {
-	Cards       []Card      `json:"cards"`
-	Rank        HandRank    `json:"rank"`
-	Kickers     []Rank      `json:"kickers"`
-	TieBreakers []Rank      `json:"tie_breakers"`
-	Score       uint32      `json:"score"` // Higher is better
+	Cards       []Card   `json:"cards"`
+	Rank        HandRank `json:"rank"`
+	Kickers     []Rank   `json:"kickers"`
+	TieBreakers []Rank   `json:"tie_breakers"`
+	Score       uint32   `json:"score"` // Higher is better
 }
 
 // HandEvaluator evaluates poker hands
@@ -146,7 +146,7 @@ func (e *HandEvaluator) evaluateDirect(cards []Card) (*EvaluatedHand, error) {
 	})
 
 	// Check for flush
-	flushSuit, flushCards := e.checkFlush(sorted)
+	_, flushCards := e.checkFlush(sorted)
 	if flushCards != nil {
 		// Check for straight flush
 		if sf := e.checkStraightFlush(flushCards); sf != nil {
@@ -261,10 +261,15 @@ func (e *HandEvaluator) checkFourOfAKind(cards []Card) *EvaluatedHand {
 			sort.Slice(kickers, func(i, j int) bool {
 				return kickers[i].Rank > kickers[j].Rank
 			})
+			// Convert kickers to ranks
+			kickerRanks := make([]Rank, len(kickers))
+			for i, c := range kickers {
+				kickerRanks[i] = c.Rank
+			}
 			return &EvaluatedHand{
 				Cards:       fourOfKind,
 				Rank:        FourOfAKind,
-				Kickers:     kickers[:1],
+				Kickers:     kickerRanks[:1],
 				TieBreakers: append([]Rank{rank}, kickers[0].Rank),
 			}
 		}
@@ -361,12 +366,17 @@ func (e *HandEvaluator) checkThreeOfAKind(cards []Card) *EvaluatedHand {
 	sort.Slice(kickers, func(i, j int) bool {
 		return kickers[i].Rank > kickers[j].Rank
 	})
+	// Convert kickers to ranks
+	kickerRanks := make([]Rank, len(kickers))
+	for i, c := range kickers {
+		kickerRanks[i] = c.Rank
+	}
 
 	return &EvaluatedHand{
 		Cards:       append(threeOfKind[:3], kickers[:2]...),
 		Rank:        ThreeOfAKind,
-		Kickers:     kickers[:2],
-		TieBreakers: append([]Rank{threeOfKindRank}, kickers[0].Rank, kickers[1].Rank),
+		Kickers:     kickerRanks[:2],
+		TieBreakers: append([]Rank{threeOfKindRank}, kickerRanks[0], kickerRanks[1]),
 	}
 }
 
@@ -414,7 +424,7 @@ func (e *HandEvaluator) checkPair(cards []Card) *EvaluatedHand {
 	rankCounts := e.countRanks(cards)
 
 	var pairRank Rank
-	for rank, count := range rankCards {
+	for rank, count := range rankCounts {
 		if count >= 2 {
 			if pairRank == 0 || rank > pairRank {
 				pairRank = rank
@@ -438,12 +448,17 @@ func (e *HandEvaluator) checkPair(cards []Card) *EvaluatedHand {
 	sort.Slice(kickers, func(i, j int) bool {
 		return kickers[i].Rank > kickers[j].Rank
 	})
+	// Convert kickers to ranks
+	kickerRanks := make([]Rank, len(kickers))
+	for i, c := range kickers {
+		kickerRanks[i] = c.Rank
+	}
 
 	return &EvaluatedHand{
 		Cards:       append(pair[:2], kickers[:3]...),
 		Rank:        Pair,
-		Kickers:     kickers[:3],
-		TieBreakers: append([]Rank{pairRank}, kickers[0].Rank, kickers[1].Rank, kickers[2].Rank),
+		Kickers:     kickerRanks[:3],
+		TieBreakers: append([]Rank{pairRank}, kickerRanks[0], kickerRanks[1], kickerRanks[2]),
 	}
 }
 

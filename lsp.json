@@ -1,0 +1,21 @@
+{
+  "languageServers": {
+    "gopls": {
+      "command": "gopls",
+      "args": ["serve"],
+      "filetypes": ["go"],
+      "rootPatterns": ["go.mod", ".git/", "pkg/"],
+      "settings": {
+        "gopls": {
+          "analyses": {
+            "unusedvariable": true,
+            "unreachable": true
+          },
+          "hoverKind": "FullDocumentation",
+          "usePlaceholders": true,
+          "completeUnimported": true
+        }
+      }
+    }
+  }
+}
