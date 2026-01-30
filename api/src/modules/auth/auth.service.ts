@@ -35,9 +35,9 @@ export class AuthService {
 
     const agent = this.agentsRepository.create({
       email: data.email,
-      password_hash: `${salt}:${passwordHash}`,
-      company_name: data.companyName,
-      contact_name: data.contactName,
+      passwordHash: `${salt}:${passwordHash}`,
+      companyName: data.companyName,
+      contactName: data.contactName,
     });
 
     await this.agentsRepository.save(agent);
@@ -57,7 +57,7 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    const [salt, hash] = agent.password_hash.split(':');
+    const [salt, hash] = agent.passwordHash.split(':');
     const passwordHash = this.hashPassword(password, salt);
 
     if (passwordHash !== hash) {
@@ -72,7 +72,7 @@ export class AuthService {
       agent: {
         id: agent.id,
         email: agent.email,
-        company_name: agent.company_name,
+        company_name: agent.companyName,
       },
     };
   }

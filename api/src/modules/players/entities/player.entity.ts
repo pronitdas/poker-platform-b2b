@@ -1,33 +1,33 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity('agents')
-export class Agent {
+@Entity('players')
+export class Player {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column()
+  name!: string;
 
   @Column({ unique: true })
   email!: string;
 
-  @Column({ name: 'password_hash' })
-  passwordHash!: string;
+  @Column({ name: 'club_id', nullable: true })
+  clubId?: string;
 
-  @Column({ name: 'company_name' })
-  companyName!: string;
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  balance!: number;
 
-  @Column({ name: 'contact_name', nullable: true })
-  contactName?: string;
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  totalWon!: number;
 
-  @Column({ nullable: true })
-  phone?: string;
+  @Column({ type: 'decimal', precision: 15, scale: 2, default: 0 })
+  totalLost!: number;
 
   @Column({ default: 'active' })
   status!: string;
 
   @Column({ type: 'jsonb', default: {} })
   settings!: Record<string, any>;
-
-  @Column({ type: 'jsonb', default: {} })
-  branding!: Record<string, any>;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
