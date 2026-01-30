@@ -61,8 +61,15 @@ func NewTable(config rules.TableConfig) (*Table, error) {
 	}
 
 	return &Table{
-		config:      config,
-		state:       rules.TableState{Players: make([]*rules.Player, config.MaxPlayers)},
+		config: config,
+		state: rules.TableState{
+			TableID:       config.TableID,
+			GameType:      config.GameType,
+			BettingType:   config.BettingType,
+			Players:       make([]*rules.Player, config.MaxPlayers),
+			SmallBlindPos: -1,
+			BigBlindPos:   -1,
+		},
 		actions:     make(chan rules.PlayerActionRequest, 10),
 		stateChange: make(chan struct{}, 1),
 		stopChan:    make(chan struct{}),
