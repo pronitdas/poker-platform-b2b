@@ -1,0 +1,132 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: poker-postgres
+    environment:
+      POSTGRES_USER: poker
+      POSTGRES_PASSWORD: poker
+      POSTGRES_DB: poker_platform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U poker -d poker_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis for sessions and caching
+  redis:
+    image: redis:7-alpine
+    container_name: poker-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Kafka for event streaming
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: poker-kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server kafka:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: poker-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # API Service
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: poker-api
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: poker
+      DB_PASSWORD: poker
+      DB_NAME: poker_platform
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your-dev-secret-change-in-production
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+
+  # Game Server
+  game-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.game-server
+    container_name: poker-game-server
+    environment:
+      GAME_SERVER_PORT: 3002
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "3002:3002"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+
+  # Admin Panel (React)
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: poker-admin
+    environment:
+      REACT_APP_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:

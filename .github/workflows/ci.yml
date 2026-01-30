@@ -1,0 +1,171 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: '1.21'
+  NODE_VERSION: '20'
+
+jobs:
+  # Go Game Server Tests
+  game-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        working-directory: ./cmd/game-server
+        run: go mod download
+
+      - name: Run linter
+        working-directory: ./cmd/game-server
+        run: go install golang.org/x/tools/cmd/goimports@latest && goimports -d .
+
+      - name: Run tests
+        working-directory: ./cmd/game-server
+        run: go test ./... -v -race -coverprofile=coverage.out
+
+      - name: Upload coverage
+        working-directory: ./cmd/game-server
+        uses: codecov/codecov-action@v3
+        with:
+          files: coverage.out
+
+      - name: Build binary
+        working-directory: ./cmd/game-server
+        run: CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o game-server .
+
+  # Node.js API Tests
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./api
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./api
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: ./api
+        run: npm test
+
+      - name: Build
+        working-directory: ./api
+        run: npm run build
+
+  # React Admin Tests
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./admin
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ./admin
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: ./admin
+        run: npm test -- --watchAll=false
+
+      - name: Build
+        working-directory: ./admin
+        run: npm run build
+
+  # Docker Build
+  docker:
+    runs-on: ubuntu-latest
+    needs: [game-server, api, admin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: false
+          tags: poker-platform-api:test
+          load: true
+
+      - name: Build Game Server image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.game-server
+          push: false
+          tags: poker-platform-game-server:test
+          load: true
+
+      - name: Build Admin image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./admin
+          push: false
+          tags: poker-platform-admin:test
+          load: true
+
+      - name: Run integration tests
+        run: |
+          echo "Running integration tests..."
+          # docker-compose -f docker-compose.test.yml up --abort-on-container-exit
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run GoSec
+        uses: securego/gosec-action@v1
+        with:
+          args: ./...
+
+      - name: Run npm audit
+        working-directory: ./api
+        run: npm audit --audit-level=high
+
+      - name: Run npm audit (admin)
+        working-directory: ./admin
+        run: npm audit --audit-level=high
