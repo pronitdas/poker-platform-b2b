@@ -60,7 +60,7 @@ func (o *Omaha) CalculateMinRaise(currentBet, minBet int64, config TableConfig) 
 	return minBet
 }
 
-func (o *Omaha) CalculateBetAmount(player *Player, targetAmount, config TableConfig) (amount int64, isAllIn bool) {
+func (o *Omaha) CalculateBetAmount(player *Player, targetAmount int64, config TableConfig) (amount int64, isAllIn bool) {
 	if targetAmount >= player.Chips {
 		return player.Chips, true
 	}
@@ -289,14 +289,14 @@ func (o *Omaha) DistributePot(state *TableState, winners []int, evaluator poker.
 	return nil
 }
 
-func (o *Omaha) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (poker.HandRank, error) {
+func (o *Omaha) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (*poker.EvaluatedHand, error) {
 	// Omaha: Must use exactly 2 hole cards and 3 community cards
 	if len(holeCards) != 4 || len(communityCards) < 3 {
 		return nil, fmt.Errorf("invalid omaha hand: need 4 hole cards and at least 3 community cards")
 	}
 
 	eval := poker.NewHandEvaluator()
-	bestHand := poker.HandRank{}
+	var bestHand *poker.EvaluatedHand
 
 	// Evaluate all combinations of 2 hole cards + 3 community cards
 	for i := 0; i < 4; i++ {
@@ -325,13 +325,19 @@ func (o *Omaha) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card
 	return bestHand, nil
 }
 
-func (o *Omaha) CompareHands(hand1, hand2 poker.HandRank) int {
+func (o *Omaha) CompareHands(hand1, hand2 *poker.EvaluatedHand) int {
+	if hand1 == nil {
+		return -1
+	}
+	if hand2 == nil {
+		return 1
+	}
 	eval := poker.NewHandEvaluator()
 	return eval.CompareHands(hand1, hand2)
 }
 
 func (o *Omaha) DetermineWinners(players []*Player, communityCards []poker.Card, evaluator poker.HandEvaluator) []int {
-	var bestHand poker.HandRank
+	var bestHand *poker.EvaluatedHand
 	var winners []int
 
 	for i, player := range players {
@@ -422,7 +428,7 @@ func (o *OmahaHiLo) Name() string {
 	return "Omaha Hi-Lo"
 }
 
-func (o *OmahaHiLo) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (poker.HandRank, error) {
+func (o *OmahaHiLo) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (*poker.EvaluatedHand, error) {
 	// For Hi-Lo, we need to evaluate both high and low hands
 	// This is a simplified version - full implementation would track both
 	return o.Omaha.EvaluateHand(holeCards, communityCards)
@@ -458,14 +464,14 @@ func (f *FiveCardDraw) Version() string {
 
 func (f *FiveCardDraw) DefaultConfig() TableConfig {
 	return TableConfig{
-		GameType:     GameTypeFiveCardDraw,
-		BettingType:  BettingTypeNoLimit,
-		MinPlayers:   2,
-		MaxPlayers:   6,
-		SmallBlind:   5,
-		BigBlind:     10,
-		BuyInMin:     100,
-		BuyInMax:     5000,
+		GameType:      GameTypeFiveCardDraw,
+		BettingType:   BettingTypeNoLimit,
+		MinPlayers:    2,
+		MaxPlayers:    6,
+		SmallBlind:    5,
+		BigBlind:      10,
+		BuyInMin:      100,
+		BuyInMax:      5000,
 		ActionTimeout: 30,
 	}
 }
@@ -479,6 +485,26 @@ func (f *FiveCardDraw) Phases() []GamePhase {
 		PhaseShowdown,
 		PhaseHandComplete,
 	}
+}
+
+func (f *FiveCardDraw) NextPhase(currentPhase GamePhase, state *TableState) GamePhase {
+	switch currentPhase {
+	case PhaseWaiting:
+		if f.ShouldStartHand(state.Players, TableConfig{}) {
+			return PhasePreflop
+		}
+	case PhasePreflop:
+		return PhasePreDeal
+	case PhasePreDeal:
+		return PhaseFlop
+	case PhaseFlop:
+		return PhaseShowdown
+	case PhaseShowdown:
+		return PhaseHandComplete
+	case PhaseHandComplete:
+		return PhaseWaiting
+	}
+	return currentPhase
 }
 
 func (f *FiveCardDraw) DealHoleCards(state *TableState, players []*Player) error {
@@ -505,13 +531,134 @@ func (f *FiveCardDraw) GetCommunityCardCount(phase GamePhase) int {
 	return 0 // No community cards in 5 Card Draw
 }
 
-func (f *FiveCardDraw) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (poker.HandRank, error) {
+func (f *FiveCardDraw) DealCommunityCards(state *TableState, phase GamePhase) error {
+	// No community cards in 5 Card Draw
+	return nil
+}
+
+func (f *FiveCardDraw) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (*poker.EvaluatedHand, error) {
 	if len(holeCards) != 5 {
 		return nil, fmt.Errorf("invalid five card draw hand: need 5 cards")
 	}
 
 	eval := poker.NewHandEvaluator()
-	return eval.Evaluate5Card(holeCards)
+	return eval.Evaluate7Card(append(holeCards, communityCards...))
+}
+
+func (f *FiveCardDraw) CompareHands(hand1, hand2 *poker.EvaluatedHand) int {
+	if hand1 == nil {
+		return -1
+	}
+	if hand2 == nil {
+		return 1
+	}
+	eval := poker.NewHandEvaluator()
+	return eval.CompareHands(hand1, hand2)
+}
+
+func (f *FiveCardDraw) DetermineFirstActor(phase GamePhase, state *TableState, positions map[int]Position) int {
+	players := state.Players
+	if len(players) == 0 {
+		return -1
+	}
+	for i := 0; i < len(players); i++ {
+		if players[i] != nil && players[i].Status == PlayerActive {
+			return i
+		}
+	}
+	return -1
+}
+
+func (f *FiveCardDraw) IsBettingPhase(phase GamePhase) bool {
+	return phase == PhasePreflop || phase == PhaseFlop
+}
+
+func (f *FiveCardDraw) IsCompletePhase(phase GamePhase) bool {
+	return phase == PhaseHandComplete || phase == PhaseShowdown
+}
+
+func (f *FiveCardDraw) CalculateBlinds(handNumber int, players []*Player, config TableConfig) (sbAmount, bbAmount int64) {
+	return config.SmallBlind, config.BigBlind
+}
+
+func (f *FiveCardDraw) CalculateMinRaise(currentBet, minBet int64, config TableConfig) int64 {
+	return minBet
+}
+
+func (f *FiveCardDraw) ValidateBetSizing(amount int64, player *Player, currentBet, minBet, potSize int64, config TableConfig) error {
+	if amount <= 0 {
+		return ErrInvalidBetAmount
+	}
+	if amount > player.Chips {
+		return ErrInsufficientChips
+	}
+	return nil
+}
+
+func (f *FiveCardDraw) ValidateAction(action PlayerActionRequest, state *TableState, player *Player, config TableConfig) error {
+	return f.BaseRulesEngine.ValidateAction(action, state, player, config)
+}
+
+func (f *FiveCardDraw) GetValidActions(state *TableState, player *Player, config TableConfig) []PlayerAction {
+	return f.BaseRulesEngine.GetValidActions(state, player, config)
+}
+
+func (f *FiveCardDraw) ProcessAction(action PlayerActionRequest, state *TableState, player *Player, config TableConfig) error {
+	return f.BaseRulesEngine.ProcessAction(action, state, player, config)
+}
+
+func (f *FiveCardDraw) RotateDealerButton(state *TableState, players []*Player) {
+	f.BaseRulesEngine.RotateDealerButton(state, players)
+}
+
+func (f *FiveCardDraw) DetermineWinners(players []*Player, communityCards []poker.Card, evaluator poker.HandEvaluator) []int {
+	var bestHand *poker.EvaluatedHand
+	var winners []int
+
+	for i, player := range players {
+		if player == nil || player.Status == PlayerFolded || len(player.HoleCards) != 5 {
+			continue
+		}
+
+		hand, err := evaluator.Evaluate7Card(append(player.HoleCards, communityCards...))
+		if err != nil {
+			continue
+		}
+
+		if bestHand == nil {
+			bestHand = hand
+			winners = []int{i}
+		} else {
+			cmp := evaluator.CompareHands(hand, bestHand)
+			if cmp > 0 {
+				bestHand = hand
+				winners = []int{i}
+			} else if cmp == 0 {
+				winners = append(winners, i)
+			}
+		}
+	}
+
+	return winners
+}
+
+func (f *FiveCardDraw) DistributePot(state *TableState, winners []int, evaluator poker.HandEvaluator) error {
+	if len(winners) == 0 {
+		return nil
+	}
+	potPerWinner := state.PotTotal / int64(len(winners))
+	for _, winnerIdx := range winners {
+		if winnerIdx >= 0 && winnerIdx < len(state.Players) && state.Players[winnerIdx] != nil {
+			state.Players[winnerIdx].Chips += potPerWinner
+		}
+	}
+	remainder := state.PotTotal % int64(len(winners))
+	if remainder > 0 && len(winners) > 0 {
+		if winners[0] >= 0 && winners[0] < len(state.Players) && state.Players[winners[0]] != nil {
+			state.Players[winners[0]].Chips += remainder
+		}
+	}
+	return nil
 }
 
 // SevenCardStud implements Seven Card Stud poker
@@ -544,14 +691,14 @@ func (s *SevenCardStud) Version() string {
 
 func (s *SevenCardStud) DefaultConfig() TableConfig {
 	return TableConfig{
-		GameType:     GameTypeSevenCardStud,
-		BettingType:  BettingTypeFixedLimit,
-		MinPlayers:   2,
-		MaxPlayers:   8,
-		SmallBlind:   5,
-		BigBlind:     10,
-		BuyInMin:     100,
-		BuyInMax:     5000,
+		GameType:      GameTypeSevenCardStud,
+		BettingType:   BettingTypeFixedLimit,
+		MinPlayers:    2,
+		MaxPlayers:    8,
+		SmallBlind:    5,
+		BigBlind:      10,
+		BuyInMin:      100,
+		BuyInMax:      5000,
 		ActionTimeout: 30,
 	}
 }
@@ -559,14 +706,38 @@ func (s *SevenCardStud) DefaultConfig() TableConfig {
 func (s *SevenCardStud) Phases() []GamePhase {
 	return []GamePhase{
 		PhaseWaiting,
-		PhasePreDeal,  // Third street
-		PhasePreflop,  // Fourth street
-		PhaseFlop,     // Fifth street
-		PhaseTurn,     // Sixth street
-		PhaseRiver,    // Seventh street (river)
+		PhasePreDeal, // Third street
+		PhasePreflop, // Fourth street
+		PhaseFlop,    // Fifth street
+		PhaseTurn,    // Sixth street
+		PhaseRiver,   // Seventh street (river)
 		PhaseShowdown,
 		PhaseHandComplete,
 	}
+}
+
+func (s *SevenCardStud) NextPhase(currentPhase GamePhase, state *TableState) GamePhase {
+	switch currentPhase {
+	case PhaseWaiting:
+		if s.ShouldStartHand(state.Players, TableConfig{}) {
+			return PhasePreDeal
+		}
+	case PhasePreDeal:
+		return PhasePreflop
+	case PhasePreflop:
+		return PhaseFlop
+	case PhaseFlop:
+		return PhaseTurn
+	case PhaseTurn:
+		return PhaseRiver
+	case PhaseRiver:
+		return PhaseShowdown
+	case PhaseShowdown:
+		return PhaseHandComplete
+	case PhaseHandComplete:
+		return PhaseWaiting
+	}
+	return currentPhase
 }
 
 func (s *SevenCardStud) DealHoleCards(state *TableState, players []*Player) error {
@@ -592,7 +763,12 @@ func (s *SevenCardStud) GetCommunityCardCount(phase GamePhase) int {
 	return 0 // No community cards in 7 Card Stud
 }
 
-func (s *SevenCardStud) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (poker.HandRank, error) {
+func (s *SevenCardStud) DealCommunityCards(state *TableState, phase GamePhase) error {
+	// No community cards in 7 Card Stud
+	return nil
+}
+
+func (s *SevenCardStud) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (*poker.EvaluatedHand, error) {
 	// 7 Card Stud: use best 5 cards from 7
 	if len(holeCards) != 7 {
 		return nil, fmt.Errorf("invalid seven card stud hand: need 7 cards")
@@ -600,4 +776,120 @@ func (s *SevenCardStud) EvaluateHand(holeCards []poker.Card, communityCards []po
 
 	eval := poker.NewHandEvaluator()
 	return eval.Evaluate7Card(holeCards)
+}
+
+func (s *SevenCardStud) CompareHands(hand1, hand2 *poker.EvaluatedHand) int {
+	if hand1 == nil {
+		return -1
+	}
+	if hand2 == nil {
+		return 1
+	}
+	eval := poker.NewHandEvaluator()
+	return eval.CompareHands(hand1, hand2)
+}
+
+func (s *SevenCardStud) DetermineFirstActor(phase GamePhase, state *TableState, positions map[int]Position) int {
+	players := state.Players
+	if len(players) == 0 {
+		return -1
+	}
+	for i := 0; i < len(players); i++ {
+		if players[i] != nil && players[i].Status == PlayerActive {
+			return i
+		}
+	}
+	return -1
+}
+
+func (s *SevenCardStud) IsBettingPhase(phase GamePhase) bool {
+	return phase == PhasePreflop || phase == PhaseFlop || phase == PhaseTurn || phase == PhaseRiver
+}
+
+func (s *SevenCardStud) IsCompletePhase(phase GamePhase) bool {
+	return phase == PhaseHandComplete || phase == PhaseShowdown
+}
+
+func (s *SevenCardStud) CalculateBlinds(handNumber int, players []*Player, config TableConfig) (sbAmount, bbAmount int64) {
+	return config.SmallBlind, config.BigBlind
+}
+
+func (s *SevenCardStud) CalculateMinRaise(currentBet, minBet int64, config TableConfig) int64 {
+	return minBet
+}
+
+func (s *SevenCardStud) ValidateBetSizing(amount int64, player *Player, currentBet, minBet, potSize int64, config TableConfig) error {
+	if amount <= 0 {
+		return ErrInvalidBetAmount
+	}
+	if amount > player.Chips {
+		return ErrInsufficientChips
+	}
+	return nil
+}
+
+func (s *SevenCardStud) ValidateAction(action PlayerActionRequest, state *TableState, player *Player, config TableConfig) error {
+	return s.BaseRulesEngine.ValidateAction(action, state, player, config)
+}
+
+func (s *SevenCardStud) GetValidActions(state *TableState, player *Player, config TableConfig) []PlayerAction {
+	return s.BaseRulesEngine.GetValidActions(state, player, config)
+}
+
+func (s *SevenCardStud) ProcessAction(action PlayerActionRequest, state *TableState, player *Player, config TableConfig) error {
+	return s.BaseRulesEngine.ProcessAction(action, state, player, config)
+}
+
+func (s *SevenCardStud) RotateDealerButton(state *TableState, players []*Player) {
+	s.BaseRulesEngine.RotateDealerButton(state, players)
+}
+
+func (s *SevenCardStud) DetermineWinners(players []*Player, communityCards []poker.Card, evaluator poker.HandEvaluator) []int {
+	var bestHand *poker.EvaluatedHand
+	var winners []int
+
+	for i, player := range players {
+		if player == nil || player.Status == PlayerFolded || len(player.HoleCards) != 7 {
+			continue
+		}
+
+		hand, err := evaluator.Evaluate7Card(player.HoleCards)
+		if err != nil {
+			continue
+		}
+
+		if bestHand == nil {
+			bestHand = hand
+			winners = []int{i}
+		} else {
+			cmp := evaluator.CompareHands(hand, bestHand)
+			if cmp > 0 {
+				bestHand = hand
+				winners = []int{i}
+			} else if cmp == 0 {
+				winners = append(winners, i)
+			}
+		}
+	}
+
+	return winners
+}
+
+func (s *SevenCardStud) DistributePot(state *TableState, winners []int, evaluator poker.HandEvaluator) error {
+	if len(winners) == 0 {
+		return nil
+	}
+	potPerWinner := state.PotTotal / int64(len(winners))
+	for _, winnerIdx := range winners {
+		if winnerIdx >= 0 && winnerIdx < len(state.Players) && state.Players[winnerIdx] != nil {
+			state.Players[winnerIdx].Chips += potPerWinner
+		}
+	}
+	remainder := state.PotTotal % int64(len(winners))
+	if remainder > 0 && len(winners) > 0 {
+		if winners[0] >= 0 && winners[0] < len(state.Players) && state.Players[winners[0]] != nil {
+			state.Players[winners[0]].Chips += remainder
+		}
+	}
+	return nil
 }

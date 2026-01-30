@@ -108,14 +108,6 @@ func (r *EngineRegistry) ListEngines() []RulesEngine {
 
 // CreateEngine creates a new rules engine instance for a game type
 func (r *EngineRegistry) CreateEngine(gameType GameType) (RulesEngine, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	engine, exists := r.engines[gameType]
-	if !exists {
-		return nil, fmt.Errorf("no engine registered for game type %s", gameType)
-	}
-
 	// Return a new instance based on game type
 	switch gameType {
 	case GameTypeTexasHoldem:

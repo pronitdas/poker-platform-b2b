@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"poker-platform/internal/fraud"
 	"poker-platform/internal/game"
+	"poker-platform/internal/game/rules"
 	"poker-platform/pkg/rng"
 )
 
@@ -44,25 +45,24 @@ func NewGameServer() (*GameServer, error) {
 
 	// Initialize fraud detection components
 	botDetector := fraud.NewBotDetector(nil)
-	collusionDetector := fraud.NewCollusionDetector(&fraud.CollusionDetectorConfig{
-		MaxPlayersPerTable: 9,
-		MinCoOccurrence:    10,
-		SoftPlayThreshold:  0.15,
-	})
-	multiAccountDetector := fraud.NewMultiAccountDetector(&fraud.MultiAccountDetectorConfig{
-		SessionOverlapThreshold: 0.8,
-		IPCorrelationThreshold:  0.5,
-	})
-	ruleEngine := fraud.NewRuleEngine()
+	collusionDetector := fraud.NewCollusionDetector(fraud.DefaultCollusionDetectionConfig())
+	multiAccountDetector := fraud.NewMultiAccountDetector(
+		fraud.DefaultMultiAccountConfig(),
+		nil, // fingerprintDB
+		nil, // ipTracker
+		nil, // sessionStore
+	)
+	ruleEngine := fraud.NewRuleEngine(fraud.NewRuleBasedDetector(), nil)
 
-	alertService := fraud.NewAlertService(nil)
-	riskScorer := fraud.NewRiskScorer(&fraud.RiskScorerConfig{
-		BotWeight:          0.30,
-		CollusionWeight:    0.25,
-		MultiAccountWeight: 0.20,
-		RuleWeight:         0.15,
-		HistoryWeight:      0.10,
-	})
+	alertService := fraud.NewAlertService(nil, nil, nil)
+	riskScorer := fraud.NewRiskScorer(
+		fraud.DefaultRiskScoringConfig(),
+		botDetector,
+		collusionDetector,
+		multiAccountDetector,
+		ruleEngine,
+		nil, // alertStorage
+	)
 
 	fraudConfig := fraud.DefaultFraudServiceConfig()
 	fraudService := fraud.NewFraudService(
@@ -97,8 +97,10 @@ func (s *GameServer) handleWebSocket(c *gin.Context) {
 	// Get or create table
 	table, exists := s.tables[tableID]
 	if !exists {
-		config := game.TableConfig{
+		config := rules.TableConfig{
 			TableID:       tableID,
+			GameType:      rules.GameTypeTexasHoldem,
+			BettingType:   rules.BettingTypeNoLimit,
 			MaxPlayers:    9,
 			MinPlayers:    2,
 			SmallBlind:    5,
@@ -107,7 +109,12 @@ func (s *GameServer) handleWebSocket(c *gin.Context) {
 			BuyInMax:      10000,
 			ActionTimeout: 30 * time.Second,
 		}
-		table = game.NewTable(config)
+		var err error
+		table, err = game.NewTable(config)
+		if err != nil {
+			log.Printf("Failed to create table: %v", err)
+			return
+		}
 		table.Start(context.Background())
 		s.tables[tableID] = table
 	}
@@ -144,7 +151,7 @@ func (s *GameServer) handleMessage(conn *websocket.Conn, table *game.Table, msg 
 			return
 		}
 		s.sendMessage(conn, map[string]interface{}{
-			"type": "joined",
+			"type":  "joined",
 			"state": table.GetState(),
 		})
 
@@ -153,7 +160,7 @@ func (s *GameServer) handleMessage(conn *websocket.Conn, table *game.Table, msg 
 		actionType := msg["action"].(string)
 		amount := int64(msg["amount"].(float64))
 
-		action := game.PlayerActionRequest{
+		action := rules.PlayerActionRequest{
 			PlayerID: playerID,
 			Action:   parseAction(actionType),
 			Amount:   amount,
@@ -163,6 +170,9 @@ func (s *GameServer) handleMessage(conn *websocket.Conn, table *game.Table, msg 
 			s.sendError(conn, err.Error())
 			return
 		}
+
+		// Get table ID for fraud detection
+		tableID := table.GetState().TableID
 
 		// Send to fraud detection service (non-blocking)
 		go func() {
@@ -193,27 +203,27 @@ func (s *GameServer) handleMessage(conn *websocket.Conn, table *game.Table, msg 
 	}
 }
 
-func parseAction(action string) game.PlayerAction {
+func parseAction(action string) rules.PlayerAction {
 	switch action {
 	case "fold":
-		return game.ActionFold
+		return rules.ActionFold
 	case "check":
-		return game.ActionCheck
+		return rules.ActionCheck
 	case "call":
-		return game.ActionCall
+		return rules.ActionCall
 	case "bet":
-		return game.ActionBet
+		return rules.ActionBet
 	case "raise":
-		return game.ActionRaise
+		return rules.ActionRaise
 	case "all_in":
-		return game.ActionAllIn
+		return rules.ActionAllIn
 	default:
-		return game.ActionFold
+		return rules.ActionFold
 	}
 }
 
 // createFraudAction converts a game action to a fraud detection action
-func (s *GameServer) createFraudAction(playerID, tableID string, action game.PlayerActionRequest, msg map[string]interface{}) *fraud.PlayerAction {
+func (s *GameServer) createFraudAction(playerID, tableID string, action rules.PlayerActionRequest, msg map[string]interface{}) *fraud.PlayerAction {
 	decisionTime := 0
 	if dt, ok := msg["decision_time_ms"].(float64); ok {
 		decisionTime = int(dt)
@@ -252,7 +262,7 @@ func (s *GameServer) createFraudAction(playerID, tableID string, action game.Pla
 }
 
 // getHandPhase maps game phase to fraud detection hand phase
-func getHandPhase(action game.PlayerAction) string {
+func getHandPhase(action rules.PlayerAction) string {
 	// In production, this would come from the table state
 	return "unknown"
 }
@@ -301,8 +311,10 @@ func main() {
 			return
 		}
 
-		config := game.TableConfig{
+		config := rules.TableConfig{
 			TableID:       req.TableID,
+			GameType:      rules.GameTypeTexasHoldem,
+			BettingType:   rules.BettingTypeNoLimit,
 			MaxPlayers:    9,
 			MinPlayers:    2,
 			SmallBlind:    5,
@@ -311,7 +323,11 @@ func main() {
 			BuyInMax:      10000,
 			ActionTimeout: 30 * time.Second,
 		}
-		table := game.NewTable(config)
+		table, err := game.NewTable(config)
+		if err != nil {
+			c.JSON(500, gin.H{"error": fmt.Sprintf("Failed to create table: %v", err)})
+			return
+		}
 		table.Start(context.Background())
 		server.tables[req.TableID] = table
 		c.JSON(201, gin.H{"tableId": req.TableID})
@@ -340,5 +356,3 @@ func main() {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
-
-import "encoding/json"

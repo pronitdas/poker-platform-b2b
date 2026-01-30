@@ -270,7 +270,7 @@ type RulesEngine interface {
 	CalculateBlinds(handNumber int, players []*Player, config TableConfig) (sbAmount, bbAmount int64)
 	CalculateMinBet(config TableConfig) int64
 	CalculateMinRaise(currentBet, minBet int64, config TableConfig) int64
-	CalculateBetAmount(player *Player, targetAmount, config TableConfig) (amount int64, isAllIn bool)
+	CalculateBetAmount(player *Player, targetAmount int64, config TableConfig) (amount int64, isAllIn bool)
 	ValidateBetSizing(amount int64, player *Player, currentBet, minBet, potSize int64, config TableConfig) error
 
 	// Hand phases
@@ -308,8 +308,8 @@ type RulesEngine interface {
 	DistributePot(state *TableState, winners []int, evaluator poker.HandEvaluator) error
 
 	// Hand evaluation
-	EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (poker.HandRank, error)
-	CompareHands(hand1, hand2 poker.HandRank) int
+	EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (*poker.EvaluatedHand, error)
+	CompareHands(hand1, hand2 *poker.EvaluatedHand) int
 	DetermineWinners(players []*Player, communityCards []poker.Card, evaluator poker.HandEvaluator) []int
 
 	// Game flow

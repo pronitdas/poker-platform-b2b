@@ -78,7 +78,7 @@ func (t *TexasHoldem) CalculateMinRaise(currentBet, minBet int64, config TableCo
 	return raiseAmount
 }
 
-func (t *TexasHoldem) CalculateBetAmount(player *Player, targetAmount, config TableConfig) (amount int64, isAllIn bool) {
+func (t *TexasHoldem) CalculateBetAmount(player *Player, targetAmount int64, config TableConfig) (amount int64, isAllIn bool) {
 	if targetAmount >= player.Chips {
 		return player.Chips, true
 	}
@@ -252,7 +252,6 @@ func (t *TexasHoldem) ValidateAction(action PlayerActionRequest, state *TableSta
 
 	// Additional Texas Hold'em specific validation
 	currentHighBet := state.LastBet
-	playerBet := player.CurrentBet
 
 	switch action.Action {
 	case ActionBet:
@@ -340,7 +339,7 @@ func (t *TexasHoldem) DistributePot(state *TableState, winners []int, evaluator 
 	return nil
 }
 
-func (t *TexasHoldem) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (poker.HandRank, error) {
+func (t *TexasHoldem) EvaluateHand(holeCards []poker.Card, communityCards []poker.Card) (*poker.EvaluatedHand, error) {
 	eval := poker.NewHandEvaluator()
 	allCards := append(holeCards, communityCards...)
 	if len(allCards) != 7 {
@@ -349,16 +348,26 @@ func (t *TexasHoldem) EvaluateHand(holeCards []poker.Card, communityCards []poke
 			allCards = append(allCards, poker.Card{})
 		}
 	}
-	return eval.Evaluate7Card(allCards)
+	hand, err := eval.Evaluate7Card(allCards)
+	if err != nil {
+		return nil, err
+	}
+	return hand, nil
 }
 
-func (t *TexasHoldem) CompareHands(hand1, hand2 poker.HandRank) int {
+func (t *TexasHoldem) CompareHands(hand1, hand2 *poker.EvaluatedHand) int {
+	if hand1 == nil {
+		return -1
+	}
+	if hand2 == nil {
+		return 1
+	}
 	eval := poker.NewHandEvaluator()
 	return eval.CompareHands(hand1, hand2)
 }
 
 func (t *TexasHoldem) DetermineWinners(players []*Player, communityCards []poker.Card, evaluator poker.HandEvaluator) []int {
-	var bestHand poker.HandRank
+	var bestHand *poker.EvaluatedHand
 	var winners []int
 
 	for i, player := range players {

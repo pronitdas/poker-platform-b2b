@@ -15,7 +15,7 @@ import (
 
 // System provides cryptographically secure random numbers for poker operations
 type System struct {
-	cipher  cipher.Block
+	stream  cipher.Stream
 	nonce   []byte
 	counter uint64
 	mu      sync.Mutex
@@ -30,20 +30,23 @@ func NewSystem(audit *AuditLogger) (*System, error) {
 		return nil, fmt.Errorf("failed to get hardware seed: %w", err)
 	}
 
-	// Create AES-CTR cipher
+	// Create AES cipher
 	block, err := aes.NewCipher(seed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
 	}
 
 	// Initialize nonce with random value
-	nonce := make([]byte, 12)
+	nonce := make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
+	// Create CTR stream for encryption
+	stream := cipher.NewCTR(block, nonce)
+
 	return &System{
-		cipher:  block,
+		stream:  stream,
 		nonce:   nonce,
 		counter: 0,
 		audit:   audit,
@@ -77,7 +80,7 @@ func (s *System) RandomUint64() uint64 {
 
 	// Encrypt with AES-CTR
 	output := make([]byte, 16)
-	s.cipher.XORKeyStream(output, counterBytes)
+	s.stream.XORKeyStream(output, counterBytes)
 
 	s.counter++
 
@@ -105,7 +108,7 @@ func (s *System) RandomBytes(n int) ([]byte, error) {
 		binary.BigEndian.PutUint64(counterBytes[:8], s.counter)
 		binary.BigEndian.PutUint64(counterBytes[8:], uint64(time.Now().UnixNano()))
 
-		s.cipher.XORKeyStream(chunk, counterBytes)
+		s.stream.XORKeyStream(chunk, counterBytes)
 		s.counter++
 
 		copyLen := 16
@@ -135,13 +138,15 @@ func NewSystemWithSeed(seed []byte, audit *AuditLogger) (*System, error) {
 		return nil, fmt.Errorf("failed to create AES cipher: %w", err)
 	}
 
-	nonce := make([]byte, 12)
+	nonce := make([]byte, 16)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
 
+	stream := cipher.NewCTR(block, nonce)
+
 	return &System{
-		cipher:  block,
+		stream:  stream,
 		nonce:   nonce,
 		counter: 0,
 		audit:   audit,
@@ -171,17 +176,17 @@ func (a *AuditLogger) LogShuffleEvent(event *ShuffleAuditEvent) error {
 
 // ShuffleAuditEvent represents a single shuffle operation for audit
 type ShuffleAuditEvent struct {
-	Timestamp    time.Time `json:"timestamp"`
-	TableID      string    `json:"table_id"`
-	HandID       string    `json:"hand_id"`
-	Seed         string    `json:"seed"`          // Hex encoded
-	SeedHash     string    `json:"seed_hash"`     // SHA-256 of seed
-	DeckBefore   []int     `json:"deck_before"`   // Card IDs before shuffle
-	DeckAfter    []int     `json:"deck_after"`    // Card IDs after shuffle
-	Algorithm    string    `json:"algorithm"`     // "Fisher-Yates"
-	PRNG         string    `json:"prng"`          // "AES-CTR-256"
-	DealerID     string    `json:"dealer_id"`
-	ServerID     string    `json:"server_id"`
+	Timestamp  time.Time `json:"timestamp"`
+	TableID    string    `json:"table_id"`
+	HandID     string    `json:"hand_id"`
+	Seed       string    `json:"seed"`        // Hex encoded
+	SeedHash   string    `json:"seed_hash"`   // SHA-256 of seed
+	DeckBefore []int     `json:"deck_before"` // Card IDs before shuffle
+	DeckAfter  []int     `json:"deck_after"`  // Card IDs after shuffle
+	Algorithm  string    `json:"algorithm"`   // "Fisher-Yates"
+	PRNG       string    `json:"prng"`        // "AES-CTR-256"
+	DealerID   string    `json:"dealer_id"`
+	ServerID   string    `json:"server_id"`
 }
 
 // CreateAuditEntry creates a structured audit entry for a shuffle
@@ -193,17 +198,17 @@ func (s *System) CreateAuditEntry(tableID, handID, dealerID, serverID string, de
 	hash := sha256.Sum256(seed)
 
 	return &ShuffleAuditEvent{
-		Timestamp:    time.Now().UTC(),
-		TableID:      tableID,
-		HandID:       handID,
-		Seed:         fmt.Sprintf("%x", seed),
-		SeedHash:     fmt.Sprintf("%x", hash[:]),
-		DeckBefore:   deckBefore,
-		DeckAfter:    deckAfter,
-		Algorithm:    "Fisher-Yates",
-		PRNG:         "AES-CTR-256",
-		DealerID:     dealerID,
-		ServerID:     serverID,
+		Timestamp:  time.Now().UTC(),
+		TableID:    tableID,
+		HandID:     handID,
+		Seed:       fmt.Sprintf("%x", seed),
+		SeedHash:   fmt.Sprintf("%x", hash[:]),
+		DeckBefore: deckBefore,
+		DeckAfter:  deckAfter,
+		Algorithm:  "Fisher-Yates",
+		PRNG:       "AES-CTR-256",
+		DealerID:   dealerID,
+		ServerID:   serverID,
 	}
 }
 
